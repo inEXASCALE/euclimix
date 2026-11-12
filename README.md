@@ -9,17 +9,11 @@
 [![CUDA 12.8+](https://img.shields.io/badge/CUDA-12.8%2B-76B900?logo=nvidia&logoColor=white&style=flat-square)](https://developer.nvidia.com/cuda-toolkit)
 [![arXiv:2407.12208](https://img.shields.io/badge/arXiv-2407.12208-B31B1B?logo=arxiv&logoColor=white&style=flat-square)](#citation)
 
-Mixed-precision Euclidean distances on NVIDIA GPUs, with Python/pybind11 and
-C++/CUDA interfaces. Low-precision expanded distances are combined with
-selective higher-precision recomputation.
+Mixed-precision Euclidean distances on NVIDIA GPUs, with Python/pybind11 and C++/CUDA interfaces. Low-precision expanded distances are combined with selective higher-precision recomputation.
 
 ## Installation
 
-Requirements: Linux, Python 3.11+, CUDA-enabled PyTorch 2.11+, CUDA toolkit
-12.8+ with `nvcc`, and an Ampere or newer GPU (SM80+). A compatible C++17
-compiler is required; newer LibTorch versions may require C++20.
-The PyTorch CUDA wheel provides runtime libraries, not the CUDA compiler.
-cuDNN is not required.
+Requirements: Linux, Python 3.11+, CUDA-enabled PyTorch 2.11+, CUDA toolkit 12.8+ with `nvcc`, and an Ampere or newer GPU (SM80+). A compatible C++17 compiler is required; newer LibTorch versions may require C++20. The PyTorch CUDA wheel provides runtime libraries, not the CUDA compiler. cuDNN is not required.
 
 Example with CUDA 12.8:
 
@@ -33,11 +27,7 @@ python -m pip install .
 python -c 'import euclimix; euclimix.build_cuda()'
 ```
 
-Set `CUDA_HOME` if the toolkit is not detected. Extensions compile on first
-use and are cached by PyTorch. Set `TORCH_CUDA_ARCH_LIST` for the target GPU
-(for example, `8.0` for A100), `MAX_JOBS` to limit build parallelism, and
-`EUCLIMIX_BUILD_VERBOSE=1` for compiler output. Build and warm up the functions
-before timing them.
+Set `CUDA_HOME` if the toolkit is not detected. Extensions compile on first use and are cached by PyTorch. Set `TORCH_CUDA_ARCH_LIST` for the target GPU (for example, `8.0` for A100), `MAX_JOBS` to limit build parallelism, and `EUCLIMIX_BUILD_VERBOSE=1` for compiler output. Build and warm up the functions before timing them.
 
 ## Python interface
 
@@ -56,8 +46,7 @@ print(squared.cpu())    # tensor([[ 0., 25.], [25.,  0.]])
 print(distances.cpu())  # tensor([[0., 5.], [5., 0.]])
 ```
 
-Omitting `Y` computes all distances within `X`. Pass a second matrix to
-compute an `(n_samples_X, n_samples_Y)` result.
+Omitting `Y` computes all distances within `X`. Pass a second matrix to compute an `(n_samples_X, n_samples_Y)` result.
 
 ### Precision and recomputation statistics
 
@@ -98,9 +87,7 @@ print(result.fallback_fraction)
 print(max_absolute_error.item())
 ```
 
-Use `storage='low'` to store intermediates in the input format and
-`test='original'` to select the empirical threshold. The FP64 direct
-reference retains FP64 output.
+Use `storage='low'` to store intermediates in the input format and `test='original'` to select the empirical threshold. The FP64 direct reference retains FP64 output.
 
 | Function | Result | Implementation |
 |---|---|---|
@@ -109,33 +96,17 @@ reference retains FP64 output.
 | `direct_squared_distances` | FP32 or FP64 squared distances | Direct subtraction and FMA accumulation |
 | `pairwise_distances` | FP32 Euclidean distances | Square root of `pairwise_squared_distances` |
 
-Inputs must be finite, dense FP32 CUDA matrices on the same device. Omit `Y`
-to compare `X` with itself. Noncontiguous inputs and negative views are
-materialized. Empty row sets are supported; zero features and more than
-`2**31-1` pairs are rejected. Autograd and CUDA graph capture are unsupported.
+Inputs must be finite, dense FP32 CUDA matrices on the same device. Omit `Y` to compare `X` with itself. Noncontiguous inputs and negative views are materialized. Empty row sets are supported; zero features and more than `2**31-1` pairs are rejected. Autograd and CUDA graph capture are unsupported.
 
-FP16/BF16 cross products use FP32 accumulation. FP32/FP64 recomputation reads
-the original FP32 coordinates; mixed outputs are stored in FP32. The
-`correction='same'` option uses quantized coordinates and low-format arithmetic,
-which can lose accuracy or overflow. Finite inputs can also produce squared
-distances outside the FP32 output range.
+FP16/BF16 cross products use FP32 accumulation. FP32/FP64 recomputation reads the original FP32 coordinates; mixed outputs are stored in FP32. The `correction='same'` option uses quantized coordinates and low-format arithmetic, which can lose accuracy or overflow. Finite inputs can also produce squared distances outside the FP32 output range.
 
-The Extended error bound assumes a bound on the inner-product arithmetic;
-its cuBLAS application is conditional on that assumption. A relative-error
-bound for distances does not ensure identical nearest-center assignments.
-See [Numerical implementation](docs/implementation.md) for the precision paths
-and threshold definitions.
+The Extended error bound assumes a bound on the inner-product arithmetic; its cuBLAS application is conditional on that assumption. A relative-error bound for distances does not ensure identical nearest-center assignments. See [Numerical implementation](docs/implementation.md) for the precision paths and threshold definitions.
 
-Input validation and reading fallback statistics synchronize with the GPU.
-Native kernels use the current CUDA stream. Callers using multiple streams
-must establish producer/consumer dependencies with events or `wait_stream`.
-The FP32 index-list path follows PyTorch's TF32/matrix-multiplication policy;
-autocast does not override explicit native precision choices.
+Input validation and reading fallback statistics synchronize with the GPU. Native kernels use the current CUDA stream. Callers using multiple streams must establish producer/consumer dependencies with events or `wait_stream`. The FP32 index-list path follows PyTorch's TF32/matrix-multiplication policy; autocast does not override explicit native precision choices.
 
 ## C++/CUDA interface
 
-The native API uses LibTorch CUDA tensors and the types in
-`euclimix/distance.h`. See [examples/native.cpp](examples/native.cpp).
+The native API uses LibTorch CUDA tensors and the types in `euclimix/distance.h`. See [examples/native.cpp](examples/native.cpp).
 
 ```cpp
 #include <euclimix/distance.h>
@@ -160,8 +131,7 @@ cmake --build .native-build -j2
 .native-build/euclimix_state_example
 ```
 
-Native inputs must be contiguous with negative views resolved. The CMake
-library can be used without Python or pybind11.
+Native inputs must be contiguous with negative views resolved. The CMake library can be used without Python or pybind11.
 
 ## Testing
 
@@ -172,18 +142,13 @@ EUCLIMIX_REQUIRE_CUDA=1 python -m pytest -m cuda
 EUCLIMIX_REQUIRE_CUDA=1 EUCLIMIX_COMPARE_PAPER=1 python -m pytest -m cuda
 ```
 
-CPU CI requires 100% Python statement and branch coverage. CUDA integration
-tests require a GPU; the GPU workflow uses a self-hosted Linux runner labeled
-`self-hosted, linux, x64, gpu`. Python coverage does not measure CUDA code.
-See [Testing](docs/validation.md) for device-memory checks and runner setup.
+CPU CI requires 100% Python statement and branch coverage. CUDA integration tests require a GPU; the GPU workflow uses a self-hosted Linux runner labeled `self-hosted, linux, x64, gpu`. Python coverage does not measure CUDA code. See [Testing](docs/validation.md) for device-memory checks and runner setup.
 
-Reference CUDA sources in `tests/reference` are used for regression tests.
-Their source hashes are recorded in [paper_sources.json](docs/paper_sources.json).
+Reference CUDA sources in `tests/reference` are used for regression tests. Their source hashes are recorded in [paper_sources.json](docs/paper_sources.json).
 
 ## Citation
 
-If you use euclimix in your research, please cite the accompanying
-[paper](https://arxiv.org/abs/2407.12208):
+If you use euclimix in your research, please cite the accompanying [paper](https://arxiv.org/abs/2407.12208):
 
 ```bibtex
 @misc{carson2024computing,
