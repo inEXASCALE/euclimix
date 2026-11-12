@@ -1,0 +1,100 @@
+{
+  "paper_commit": "eb195775a59930c146bbbcf283f85608585333b0",
+  "original_files": [
+    {
+      "file": "tests/reference/center_kernels.cu",
+      "paper_file": "exps/csrc/center_kernels.cu",
+      "sha256": "16ac5f909f07d6c154a47b035fb2ee36d51fd925b017e3d0412381b21cbb3d56"
+    },
+    {
+      "file": "tests/reference/center_kernels.cuh",
+      "paper_file": "exps/csrc/center_kernels.cuh",
+      "sha256": "13e15ea723e358e3bcab28a12394e95889137fd17e6cd1d3f946f503641c9be4"
+    },
+    {
+      "file": "tests/reference/euclidean_cuda.cpp",
+      "paper_file": "exps/csrc/euclidean_cuda.cpp",
+      "sha256": "bb5e2c338bdd1e4e350427eecc054dcd5b16bd8bc34f7319ad1f7d1b4cf69314"
+    },
+    {
+      "file": "tests/reference/euclidean_cuda_advanced.cpp",
+      "paper_file": "exps/csrc/euclidean_cuda_advanced.cpp",
+      "sha256": "533f534a1eb19646ce61508a7fb6ae2b1e3ad16caa17e744d88ea0119a51cf1c"
+    },
+    {
+      "file": "tests/reference/euclidean_cuda_mix.cpp",
+      "paper_file": "exps/csrc/euclidean_cuda_mix.cpp",
+      "sha256": "1d1f8d62a2e3a68c4ea7e05992f793bf12b6d6b7577947e047d0cb3ca5933061"
+    },
+    {
+      "file": "tests/reference/euclidean_cuda_tiled.cpp",
+      "paper_file": "exps/csrc/euclidean_cuda_tiled.cpp",
+      "sha256": "f00f3a9ca93a6467bd25e532b8ba8f48c43f024a73ba5cc93fda3eb07d025c1f"
+    },
+    {
+      "file": "tests/reference/euclidean_cuda_uniform.cpp",
+      "paper_file": "exps/csrc/euclidean_cuda_uniform.cpp",
+      "sha256": "93e2bcf5fe4db75a4c57ad16ac799db61f6d1082627d21857a10d138057ae8a1"
+    },
+    {
+      "file": "tests/reference/euclidean_kernels.cu",
+      "paper_file": "exps/csrc/euclidean_kernels.cu",
+      "sha256": "49978f3e11a8a5099bea80779d6724680db20d4385b8048f0559b2137dfd443e"
+    },
+    {
+      "file": "tests/reference/euclidean_kernels.cuh",
+      "paper_file": "exps/csrc/euclidean_kernels.cuh",
+      "sha256": "fac538925d7f057170548a656eee6b7f022e304a574847e7ec2f48d826d27375"
+    },
+    {
+      "file": "tests/reference/euclidean_kernels_advanced.cu",
+      "paper_file": "exps/csrc/euclidean_kernels_advanced.cu",
+      "sha256": "0ade485978bfa3ef2ab57f617bae3bc3ba19b949cf0d0fc40037b4f165bdd145"
+    },
+    {
+      "file": "tests/reference/euclidean_kernels_advanced.cuh",
+      "paper_file": "exps/csrc/euclidean_kernels_advanced.cuh",
+      "sha256": "d8eb4b6f4392599fd0b03c4ebd37f4f2b57deafabaa066ebddd3a4bc2da5d77d"
+    },
+    {
+      "file": "tests/reference/euclidean_kernels_mix.cu",
+      "paper_file": "exps/csrc/euclidean_kernels_mix.cu",
+      "sha256": "b8632295983c8d3a053f3e644005a12dc45a1d4187c094fd33c8eb60bb954b92"
+    },
+    {
+      "file": "tests/reference/euclidean_kernels_mix.cuh",
+      "paper_file": "exps/csrc/euclidean_kernels_mix.cuh",
+      "sha256": "8f6b40e436a533deb80329f9aace4c1c8a4e8a5fc93fb4ff8ab5fa963df36194"
+    },
+    {
+      "file": "tests/reference/euclidean_kernels_tiled.cu",
+      "paper_file": "exps/csrc/euclidean_kernels_tiled.cu",
+      "sha256": "aa181dd1f340ba1b5d4bf589b27afba1be46b9d2530a0449cfad7623dc16c74c"
+    },
+    {
+      "file": "tests/reference/euclidean_kernels_tiled.cuh",
+      "paper_file": "exps/csrc/euclidean_kernels_tiled.cuh",
+      "sha256": "c3effae1d0181406f8ef9f72640f74c1f32b8af4df5a8499a90f70a6b35ee2a3"
+    },
+    {
+      "file": "tests/reference/euclidean_kernels_tiled_tc.cu",
+      "paper_file": "exps/csrc/euclidean_kernels_tiled_tc.cu",
+      "sha256": "fba17ae0715e6316a3f512b78ad87e917fe17d365ca8f268ffa48df43237dae0"
+    },
+    {
+      "file": "tests/reference/euclidean_kernels_uniform.cu",
+      "paper_file": "exps/csrc/euclidean_kernels_uniform.cu",
+      "sha256": "d95233345b911d95ad3e4d659114252fb4d3a8e041eb713408c3c66ecf547778"
+    },
+    {
+      "file": "tests/reference/euclidean_kernels_uniform.cuh",
+      "paper_file": "exps/csrc/euclidean_kernels_uniform.cuh",
+      "sha256": "7d4bc4c2a6cad6c08783c0dd8b8d5be964f34182cde05b96acb107438387c04a"
+    }
+  ],
+  "controlled_source": {
+    "paper_file": "exps/reviewer_experiments/csrc/reviewer_distance.cu",
+    "sha256": "aa289df82785abbfdff4065a3acef64bf056c92c71feebc69c8f9462c0d0a678"
+  },
+  "repository": "https://github.com/chenxinye/mp_kmeans_paper"
+}

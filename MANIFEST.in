@@ -1,0 +1,6 @@
+include README.md pyproject.toml
+recursive-include src/euclimix *.py *.typed *.cpp *.cu *.h CMakeLists.txt
+recursive-include docs *.md *.json
+recursive-include examples *.py *.cpp
+recursive-include tests *.py *.cu *.cuh *.cpp *.md
+

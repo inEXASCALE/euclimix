@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "euclimix"
+version = "0.1.0"
+description = "Mixed-precision squared Euclidean distances with selective CUDA recomputation"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{name = "Xinye Chen"}]
+dependencies = ["torch>=2.11,<3", "ninja>=1.11"]
+
+[project.optional-dependencies]
+test = ["pytest>=7.4", "pytest-cov>=4.1", "numpy>=1.26"]
+build = ["build>=1.2"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+euclimix = ["py.typed", "csrc/*.cpp", "csrc/*.cu", "csrc/*.h", "csrc/include/euclimix/*.h", "csrc/CMakeLists.txt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["cuda: requires an NVIDIA GPU and the CUDA compiler"]
+addopts = "-ra --strict-markers"
+
+[tool.coverage.run]
+branch = true
+source = ["euclimix"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 100
+

@@ -1,0 +1,16 @@
+.DS_Store
+.venv/
+.gpu-venv/
+.build-venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage*
+coverage.xml
+*-tests.xml
+htmlcov/
+build/
+dist/
+*.egg-info/
+.native-build/
+

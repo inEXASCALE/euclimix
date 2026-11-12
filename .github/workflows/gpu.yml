@@ -1,0 +1,44 @@
+name: CUDA integration and regression tests
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cuda:
+    runs-on: [self-hosted, linux, x64, gpu]
+    timeout-minutes: 60
+    env:
+      EUCLIMIX_REQUIRE_CUDA: '1'
+      EUCLIMIX_COMPARE_PAPER: '1'
+      TORCH_CUDA_ARCH_LIST: '8.0'
+      MAX_JOBS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create isolated Python environment
+        run: python3 -m venv .gpu-venv
+      - name: Install PyTorch and euclimix
+        run: |
+          .gpu-venv/bin/python -m pip install --upgrade pip
+          .gpu-venv/bin/python -m pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu128
+          .gpu-venv/bin/python -m pip install -e '.[test,build]'
+      - name: Record environment and compile both extensions
+        run: |
+          nvcc --version
+          nvidia-smi
+          .gpu-venv/bin/python -c 'import torch,euclimix; print(torch.__version__, torch.version.cuda); euclimix.build_cuda()'
+      - name: Run CUDA integration and regression tests
+        run: .gpu-venv/bin/python -m pytest -m cuda --junitxml=cuda-tests.xml
+      - name: Check device memory accesses
+        run: compute-sanitizer --tool memcheck --error-exitcode=1 .gpu-venv/bin/python -m pytest -m cuda tests/test_cuda.py
+      - name: Build and run the native C++ CUDA interface
+        run: |
+          cmake -S src/euclimix/csrc -B .native-build -DCMAKE_PREFIX_PATH="$(.gpu-venv/bin/python -c 'import torch; print(torch.utils.cmake_prefix_path)')" -DCMAKE_CUDA_ARCHITECTURES=80 -DEUCLIMIX_BUILD_EXAMPLE=ON
+          cmake --build .native-build -j2
+          .native-build/euclimix_native_example
+          .native-build/euclimix_state_example
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cuda-test-results
+          path: cuda-tests.xml
+
