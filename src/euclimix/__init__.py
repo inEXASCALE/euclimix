@@ -9,7 +9,7 @@ from ._api import (
 from ._extension import build_cuda
 from ._result import DistanceResult
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __all__ = [
     "DistanceResult", "build_cuda", "controlled_squared_distances",
     "direct_squared_distances", "pairwise_distances", "pairwise_squared_distances",
