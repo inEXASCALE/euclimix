@@ -34,7 +34,10 @@ bash tools/build_cuda_wheel.sh
 ```
 
 The build uses the installed PyPI PyTorch wheel and checks that both backends
-contain SM75 and SM80 machine code. The wheel declares its PyTorch runtime
+contain SM75 and SM80 machine code. Wheel builds map host diagnostic paths to
+relative paths and omit CUDA source line information. The wheel check scans
+the host extensions and the extracted CUDA binaries for absolute build paths.
+The wheel declares its PyTorch runtime
 dependency and reuses LibTorch, cuBLAS, and the CUDA runtime from the installed
 dependencies. Install the wheel in a fresh environment with a GPU and driver
 and run the smoke test with a new JIT cache path.

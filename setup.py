@@ -11,9 +11,10 @@ from setuptools import setup
 
 def cuda_wheel_options():
     import torch
-    from torch.utils.cpp_extension import BuildExtension, CUDAExtension
+    from torch.utils.cpp_extension import CUDA_HOME, BuildExtension, CUDAExtension
 
-    config = runpy.run_path(str(Path(__file__).resolve().parent / "src/euclimix/_build_config.py"))
+    repo = Path(__file__).resolve().parent
+    config = runpy.run_path(str(repo / "src/euclimix/_build_config.py"))
     torch_version = config["WHEEL_TORCH_VERSION"]
     cuda_version = config["WHEEL_CUDA_VERSION"]
     if sys.platform != "linux" or platform.machine() != "x86_64":
@@ -23,6 +24,13 @@ def cuda_wheel_options():
 
     os.environ["TORCH_CUDA_ARCH_LIST"] = "7.5;8.0"
     source_dir = Path("src/euclimix/csrc")
+    prefix_maps = [
+        f"-ffile-prefix-map={repo}=.",
+        f"-ffile-prefix-map={Path(torch.__file__).parent}=torch",
+    ]
+    if CUDA_HOME is not None:
+        prefix_maps.append(f"-ffile-prefix-map={CUDA_HOME}=cuda")
+    nvcc_host_flags = [f"-Xcompiler={flag}" for flag in prefix_maps]
     extensions = [
         CUDAExtension(
             f"euclimix._{backend}_cuda",
@@ -30,7 +38,10 @@ def cuda_wheel_options():
             include_dirs=[str((source_dir / "include").resolve())],
             libraries=["cublas"],
             runtime_library_dirs=["$ORIGIN/../torch/lib", "$ORIGIN/../nvidia/cu13/lib"],
-            extra_compile_args={"cxx": ["-O3"], "nvcc": list(flags)},
+            extra_compile_args={
+                "cxx": ["-O3", *prefix_maps],
+                "nvcc": [flag for flag in flags if flag != "-lineinfo"] + nvcc_host_flags,
+            },
         )
         for backend, flags in config["CUDA_FLAGS"].items()
     ]

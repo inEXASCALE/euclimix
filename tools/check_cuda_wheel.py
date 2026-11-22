@@ -1,4 +1,4 @@
-"""Check the platform tag and CUDA machine code of a built wheel."""
+"""Check the platform tag, CUDA machine code and build paths of a wheel."""
 
 from pathlib import Path, PurePosixPath
 import re
@@ -6,6 +6,16 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
+
+
+BUILD_PATH = re.compile(rb"/(?:release|home|Users|tmp|__w|__t|github/workspace|opt/rh)/[A-Za-z0-9._+/-]+")
+CUDA_ARCHITECTURE = re.compile(r"\.sm_(\d+)\.cubin$")
+
+
+def check_build_paths(path):
+    leak = BUILD_PATH.search(path.read_bytes())
+    if leak is not None:
+        raise RuntimeError(f"{path.name} contains an absolute build path: {leak[0].decode()}")
 
 
 def check(path):
@@ -24,13 +34,22 @@ def check(path):
         if set(extensions) != {"_paper_cuda", "_controlled_cuda"}:
             raise RuntimeError(f"Expected both CUDA extensions in {path.name}.")
         for module, name in extensions.items():
-            extracted = Path(directory) / PurePosixPath(name).name
+            module_dir = Path(directory) / module
+            module_dir.mkdir()
+            extracted = module_dir / PurePosixPath(name).name
             extracted.write_bytes(wheel.read(name))
-            listing = subprocess.check_output(["cuobjdump", "--list-elf", str(extracted)], text=True)
-            architectures = set(re.findall(r"\.sm_(\d+)\.cubin", listing))
+            check_build_paths(extracted)
+            listing = subprocess.check_output(
+                ["cuobjdump", "--extract-elf", "all", extracted.name], cwd=module_dir, text=True,
+            )
+            architectures = set()
+            for cubin in module_dir.glob("*.cubin"):
+                if match := CUDA_ARCHITECTURE.search(cubin.name):
+                    architectures.add(match[1])
+                check_build_paths(cubin)
             if not {"75", "80"} <= architectures:
                 raise RuntimeError(f"{module} is missing SM75 or SM80 machine code.\n{listing}")
-            print(f"{path.name} {module} compiled for SM{' and SM'.join(sorted(architectures))}")
+            print(f"{path.name} {module} passed architecture and build-path checks for SM{' and SM'.join(sorted(architectures))}")
 
 
 if __name__ == "__main__":

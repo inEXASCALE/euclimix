@@ -1,7 +1,7 @@
 # euclimix
 
-[![CI](https://img.shields.io/github/actions/workflow/status/inEXASCALE/euclid-cuda/cpu.yml?branch=main&label=CI&logo=githubactions&logoColor=white&style=flat-square)](https://github.com/inEXASCALE/euclid-cuda/actions/workflows/cpu.yml)
-[![CUDA tests](https://img.shields.io/github/actions/workflow/status/inEXASCALE/euclid-cuda/gpu.yml?branch=main&label=CUDA%20tests&logo=nvidia&logoColor=white&style=flat-square)](https://github.com/inEXASCALE/euclid-cuda/actions/workflows/gpu.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/inEXASCALE/euclimix/cpu.yml?branch=main&label=CI&logo=githubactions&logoColor=white&style=flat-square)](https://github.com/inEXASCALE/euclimix/actions/workflows/cpu.yml)
+[![CUDA tests](https://img.shields.io/github/actions/workflow/status/inEXASCALE/euclimix/gpu.yml?branch=main&label=CUDA%20tests&logo=nvidia&logoColor=white&style=flat-square)](https://github.com/inEXASCALE/euclimix/actions/workflows/gpu.yml)
 [![Python coverage gate: 100%](https://img.shields.io/badge/Python%20coverage%20gate-100%25-2C974B?logo=pytest&logoColor=white&style=flat-square)](docs/validation.md#python-tests)
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white&style=flat-square)](pyproject.toml)
@@ -36,8 +36,8 @@ Requirements include Linux, Python 3.11+, CUDA-enabled PyTorch 2.11+, CUDA toolk
 Example with CUDA 12.8:
 
 ```bash
-git clone https://github.com/inEXASCALE/euclid-cuda.git
-cd euclid-cuda
+git clone https://github.com/inEXASCALE/euclimix.git
+cd euclimix
 conda create -n euclimix python=3.12 -y
 conda activate euclimix
 python -m pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu128
