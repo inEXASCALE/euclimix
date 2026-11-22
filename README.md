@@ -166,17 +166,14 @@ Reference CUDA sources in `tests/reference` are used for regression tests. Their
 
 ## Citation
 
-If you use euclimix in your research, please cite the accompanying [paper](https://arxiv.org/abs/2407.12208):
+If you use euclimix in your research, please cite the accompanying paper, accepted for publication in the *SIAM Journal on Scientific Computing*. [arXiv preprint](https://arxiv.org/abs/2407.12208v4)
 
 ```bibtex
-@misc{carson2024computing,
-  title         = {Mixed-Precision Lloyd's Algorithm for k-means Clustering},
-  author        = {Erin Carson and Xinye Chen and Xiaobo Liu},
-  year          = {2024},
-  eprint        = {2407.12208},
-  archivePrefix = {arXiv},
-  primaryClass  = {math.NA},
-  doi           = {10.48550/arXiv.2407.12208},
-  url           = {https://arxiv.org/abs/2407.12208}
+@article{carsonMixedPrecisionLloyd,
+  author  = {Erin Carson and Xinye Chen and Xiaobo Liu},
+  title   = {Mixed-Precision {Lloyd}'s Algorithm for $k$-means Clustering},
+  journal = {SIAM Journal on Scientific Computing},
+  year    = {forthcoming},
+  url     = {https://arxiv.org/abs/2407.12208v4}
 }
 ```
