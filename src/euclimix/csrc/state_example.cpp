@@ -31,7 +31,9 @@ int main() {
     auto options = torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA);
     auto x = torch::zeros({1, 2}, options);
     auto y = torch::arange(3, 5, options).reshape({1, 2});
+    const bool supports_bf16 = at::cuda::getCurrentDeviceProperties()->major >= 8;
     for (auto precision : {euclimix::InputPrecision::FP16, euclimix::InputPrecision::BF16}) {
+        if (precision == euclimix::InputPrecision::BF16 && !supports_bf16) continue;
         euclimix::PaperOptions paper;
         paper.precision = precision;
         check_modes([&] { return euclimix::paper_squared_distances(x, y, paper); });

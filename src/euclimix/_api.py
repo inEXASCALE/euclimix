@@ -1,12 +1,14 @@
 """Euclidean and squared-distance interfaces."""
 
-import torch
-
 from ._extension import load_backend
 from ._result import DistanceResult
 from ._validation import (
     BACKENDS, CORRECTIONS, FORMATS, STORAGE, TESTS, choice, validate_inputs, validate_rho,
 )
+
+
+def _paper_options(precision, correction, rho):
+    return choice(precision, FORMATS, "precision"), choice(correction, CORRECTIONS, "correction"), validate_rho(rho)
 
 
 def pairwise_squared_distances(X, Y=None, *, precision="fp16", correction="fp64", rho=5.0, return_info=False):
@@ -39,19 +41,17 @@ def pairwise_squared_distances(X, Y=None, *, precision="fp16", correction="fp64"
 
     Notes
     -----
-    Uses an index list and the Original empirical threshold. The FP32-to-FP32
+    Uses the Original empirical threshold. The FP32-to-FP32
     and FP32-to-FP64 paths use different threshold coefficients.
     FP64 correction is rounded to FP32 on output. Values outside the output
     range can overflow; 'same' can also lose accuracy or overflow on modest
     inputs.
-    Native calls use the current CUDA stream; input validation synchronizes.
+    Native calls use the current CUDA stream. Finite-coordinate validation synchronizes.
     """
-    low = choice(precision, FORMATS, "precision")
-    high = choice(correction, CORRECTIONS, "correction")
-    rho = validate_rho(rho)
+    low, high, rho = _paper_options(precision, correction, rho)
     if not isinstance(return_info, bool):
         raise TypeError("return_info must be a bool")
-    X, Y = validate_inputs(X, Y)
+    X, Y = validate_inputs(X, Y, bf16=precision == "bf16", check_finite=False)
     distances, mask = load_backend("paper").distance(X, Y, low, high, rho)
     if return_info:
         return DistanceResult(distances, mask.bool(), None, "original_empirical_test")
@@ -106,7 +106,7 @@ def controlled_squared_distances(X, Y=None, *, precision="fp16", correction="fp6
     rho = validate_rho(rho)
     if not isinstance(return_info, bool):
         raise TypeError("return_info must be a bool")
-    X, Y = validate_inputs(X, Y)
+    X, Y = validate_inputs(X, Y, bf16=precision == "bf16")
     distances, mask, bound = load_backend("controlled").distance(
         X, Y, low, stored, cross, criterion, high, 32, rho, -1.0,
     )
@@ -160,7 +160,7 @@ def pairwise_distances(X, Y=None, *, precision="fp16", correction="fp64", rho=5.
     distances : torch.Tensor of shape (n_samples_X, n_samples_Y)
         Euclidean distances in FP32, including square-root rounding.
     """
-    return torch.sqrt(pairwise_squared_distances(
-        X, Y, precision=precision, correction=correction, rho=rho,
-    ))
+    low, high, rho = _paper_options(precision, correction, rho)
+    X, Y = validate_inputs(X, Y, bf16=precision == "bf16", check_finite=False)
+    return load_backend("paper").euclidean(X, Y, low, high, rho)
 

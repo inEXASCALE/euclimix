@@ -13,7 +13,7 @@ Mixed-precision Euclidean distances on NVIDIA GPUs, with Python/pybind11 and C++
 
 ## Installation
 
-Requirements: Linux, Python 3.11+, CUDA-enabled PyTorch 2.11+, CUDA toolkit 12.8+ with `nvcc`, and an Ampere or newer GPU (SM80+). A compatible C++17 compiler is required; newer LibTorch versions may require C++20. The PyTorch CUDA wheel provides runtime libraries, not the CUDA compiler. cuDNN is not required.
+Requirements include Linux, Python 3.11+, CUDA-enabled PyTorch 2.11+, CUDA toolkit 12.8+ with `nvcc`, and an NVIDIA Turing or newer GPU (SM75+). BF16 requires Ampere or newer (SM80+). The PyTorch wheel must support the target GPU. Use a compatible C++17 compiler or C++20 if required by LibTorch. The PyTorch CUDA wheel provides runtime libraries. Install the CUDA compiler separately. cuDNN is optional.
 
 Example with CUDA 12.8:
 
@@ -27,7 +27,7 @@ python -m pip install .
 python -c 'import euclimix; euclimix.build_cuda()'
 ```
 
-Set `CUDA_HOME` if the toolkit is not detected. Extensions compile on first use and are cached by PyTorch. Set `TORCH_CUDA_ARCH_LIST` for the target GPU (for example, `8.0` for A100), `MAX_JOBS` to limit build parallelism, and `EUCLIMIX_BUILD_VERBOSE=1` for compiler output. Build and warm up the functions before timing them.
+Set `CUDA_HOME` if the toolkit is not detected. Extensions compile on first use and are cached by PyTorch. Set `TORCH_CUDA_ARCH_LIST` for the target GPU (`7.5` for RTX 2080 Ti or `8.0` for A100), `MAX_JOBS` to limit build parallelism, and `EUCLIMIX_BUILD_VERBOSE=1` for compiler output. Build and warm up the functions before timing them.
 
 ## Python interface
 
@@ -77,7 +77,7 @@ X = torch.randn(256, 128, device='cuda', dtype=torch.float32)
 Y = torch.randn(128, 128, device='cuda', dtype=torch.float32)
 
 result = controlled_squared_distances(
-    X, Y, precision='bf16', storage='fp32', test='extended', return_info=True,
+    X, Y, precision='fp16', storage='fp32', test='extended', return_info=True,
 )
 reference = direct_squared_distances(X, Y, precision='fp64')
 max_absolute_error = (result.distances.double() - reference).abs().max()
@@ -91,10 +91,10 @@ Use `storage='low'` to store intermediates in the input format and `test='origin
 
 | Function | Result | Implementation |
 |---|---|---|
-| `pairwise_squared_distances` | FP32 squared distances | Expanded formula, Original test, index-list recomputation |
+| `pairwise_squared_distances` | FP32 squared distances | Expanded formula with Original test and fused selective recomputation |
 | `controlled_squared_distances` | FP32 squared distances | Configurable storage and Original/Extended test, mask-based recomputation |
 | `direct_squared_distances` | FP32 or FP64 squared distances | Direct subtraction and FMA accumulation |
-| `pairwise_distances` | FP32 Euclidean distances | Square root of `pairwise_squared_distances` |
+| `pairwise_distances` | FP32 Euclidean distances | Same algorithm with a fused FP32 square root |
 
 Inputs must be finite, dense FP32 CUDA matrices on the same device. Omit `Y` to compare `X` with itself. Noncontiguous inputs and negative views are materialized. Empty row sets are supported; zero features and more than `2**31-1` pairs are rejected. Autograd and CUDA graph capture are unsupported.
 
@@ -102,7 +102,7 @@ FP16/BF16 cross products use FP32 accumulation. FP32/FP64 recomputation reads th
 
 The Extended error bound assumes a bound on the inner-product arithmetic; its cuBLAS application is conditional on that assumption. A relative-error bound for distances does not ensure identical nearest-center assignments. See [Numerical implementation](docs/implementation.md) for the precision paths and threshold definitions.
 
-Input validation and reading fallback statistics synchronize with the GPU. Native kernels use the current CUDA stream. Callers using multiple streams must establish producer/consumer dependencies with events or `wait_stream`. The FP32 index-list path follows PyTorch's TF32/matrix-multiplication policy; autocast does not override explicit native precision choices.
+Input validation and reading fallback statistics synchronize with the GPU. The two pairwise APIs check both inputs together in one native CUDA pass with one host readback for nonempty inputs. Native kernels use the current CUDA stream. Callers using multiple streams must establish producer/consumer dependencies with events or `wait_stream`. The FP32 pairwise path follows PyTorch's matrix-multiplication policy. Explicit native precision choices take precedence over autocast.
 
 ## C++/CUDA interface
 
@@ -120,7 +120,7 @@ euclimix::DistanceResult distances(torch::Tensor X, torch::Tensor Y) {
 }
 ```
 
-Build the native library and examples:
+Build the native library and examples. For an RTX 2080 Ti, set `TORCH_CUDA_ARCH_LIST=7.5` and pass `-DCMAKE_CUDA_ARCHITECTURES=75`.
 
 ```bash
 cmake -S src/euclimix/csrc -B .native-build \
@@ -152,7 +152,7 @@ If you use euclimix in your research, please cite the accompanying [paper](https
 
 ```bibtex
 @misc{carson2024computing,
-  title         = {Computing $k$-means in mixed precision},
+  title         = {Mixed-Precision Lloyd's Algorithm for k-means Clustering},
   author        = {Erin Carson and Xinye Chen and Xiaobo Liu},
   year          = {2024},
   eprint        = {2407.12208},

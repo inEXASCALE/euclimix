@@ -28,7 +28,7 @@ def validate_rho(rho):
     return float(rho)
 
 
-def validate_inputs(X, Y):
+def validate_inputs(X, Y, *, bf16=False, check_finite=True):
     Y = X if Y is None else Y
     if not isinstance(X, torch.Tensor) or not isinstance(Y, torch.Tensor):
         raise TypeError("X and Y must be torch.Tensor instances")
@@ -48,9 +48,13 @@ def validate_inputs(X, Y):
         raise ValueError("X and Y must be on the same CUDA device")
     if X.requires_grad or Y.requires_grad:
         raise ValueError("autograd is not supported; explicitly detach the inputs")
-    if not bool(torch.isfinite(X).all()) or not bool(torch.isfinite(Y).all()):
-        raise ValueError("X and Y must contain only finite coordinates")
-    if torch.cuda.get_device_capability(X.device)[0] < 8:
-        raise RuntimeError("euclimix requires an NVIDIA Ampere or newer GPU (SM80+)")
+    if check_finite:
+        if not bool(torch.isfinite(X).all()) or not bool(torch.isfinite(Y).all()):
+            raise ValueError("X and Y must contain only finite coordinates")
+    capability = torch.cuda.get_device_capability(X.device)
+    if capability < (7, 5):
+        raise RuntimeError("euclimix requires an NVIDIA Turing or newer GPU (SM75+)")
+    if bf16 and capability < (8, 0):
+        raise RuntimeError("BF16 requires an NVIDIA Ampere or newer GPU (SM80+)")
     return X.resolve_neg().contiguous(), Y.resolve_neg().contiguous()
 

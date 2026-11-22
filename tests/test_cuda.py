@@ -8,6 +8,11 @@ import torch
 import euclimix
 
 pytestmark = pytest.mark.cuda
+requires_bf16 = pytest.mark.skipif(
+    "torch.cuda.is_available() and torch.cuda.get_device_capability()[0] < 8",
+    reason="BF16 requires SM80+",
+)
+BF16 = pytest.param("bf16", marks=requires_bf16)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -36,7 +41,8 @@ def reference(x, y):
     return ((x.double()[:, None] - y.double()[None]) ** 2).sum(-1)
 
 
-@pytest.mark.parametrize("precision,correction", itertools.product(["fp16", "bf16", "fp32"], ["same", "fp32", "fp64"]))
+@pytest.mark.parametrize("precision", ["fp16", BF16, "fp32"])
+@pytest.mark.parametrize("correction", ["same", "fp32", "fp64"])
 def test_paper_all_modes(precision, correction):
     x, y = data()
     result = euclimix.pairwise_squared_distances(x, y, precision=precision, correction=correction, return_info=True)
@@ -47,6 +53,8 @@ def test_paper_all_modes(precision, correction):
     assert result.fallback_mask[0, 0]
     assert torch.isfinite(result.distances).all()
     assert (result.distances >= 0).all()
+    euclidean = euclimix.pairwise_distances(x, y, precision=precision, correction=correction)
+    assert torch.equal(euclidean, result.distances.sqrt())
     # Same-format correction deliberately uses quantized inputs.
     if correction != "same":
         tolerance = 3e-2 if precision == "bf16" else 3e-3
@@ -54,7 +62,10 @@ def test_paper_all_modes(precision, correction):
         torch.testing.assert_close(result.distances[result.fallback_mask], expected.float()[result.fallback_mask], rtol=3e-6, atol=1e-12)
 
 
-@pytest.mark.parametrize("precision,storage,test,backend,correction", itertools.product(["fp16", "bf16"], ["low", "fp32"], ["original", "extended"], ["cublas", "sequential"], ["fp32", "fp64"]))
+@pytest.mark.parametrize("precision", ["fp16", BF16])
+@pytest.mark.parametrize("storage,test,backend,correction", list(itertools.product(
+    ["low", "fp32"], ["original", "extended"], ["cublas", "sequential"], ["fp32", "fp64"],
+)))
 def test_controlled_all_modes(precision, storage, test, backend, correction):
     x, y = data()
     result = euclimix.controlled_squared_distances(x, y, precision=precision, storage=storage, test=test, backend=backend, correction=correction, return_info=True)
@@ -112,6 +123,31 @@ def test_euclidean_and_zero_vectors():
     assert euclimix.pairwise_squared_distances(x).item() == 0
 
 
+def test_euclidean_sqrt_at_numeric_extremes():
+    x = torch.tensor([[2.0**-63], [1e-22], [1e20]], device="cuda")
+    y = torch.zeros((1, 1), device="cuda")
+    squared = euclimix.pairwise_squared_distances(x, y, correction="fp64")
+    assert squared[0, 0].item() == torch.finfo(torch.float32).tiny
+    assert torch.isinf(squared[2, 0])
+    assert torch.equal(euclimix.pairwise_distances(x, y, correction="fp64"), squared.sqrt())
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf")])
+def test_paper_rejects_nonfinite_coordinates(bad):
+    empty = torch.empty((0, 1), device="cuda")
+    invalid = torch.tensor([[bad]], device="cuda")
+    paper, _ = euclimix.build_cuda()
+    for x, y in ((empty, invalid), (invalid, empty)):
+        with pytest.raises(ValueError, match="finite coordinates"):
+            euclimix.pairwise_squared_distances(x, y)
+        with pytest.raises(ValueError, match="finite coordinates"):
+            euclimix.pairwise_distances(x, y)
+        with pytest.raises(ValueError, match="finite coordinates"):
+            paper.distance(x, y, 0, 32, 5.)
+        with pytest.raises(ValueError, match="finite coordinates"):
+            paper.euclidean(x, y, 0, 32, 5.)
+
+
 def test_controlled_gradual_underflow():
     x = torch.tensor([[1e-22]], device="cuda")
     y = torch.zeros_like(x)
@@ -121,6 +157,7 @@ def test_controlled_gradual_underflow():
     assert result.distances.item() == reference(x, y).float().item()
 
 
+@requires_bf16
 def test_bf16_original_full_recomputation_at_paper_dimension():
     x, y = data(n=5, m=3, r=128)
     for storage in ("low", "fp32"):
@@ -129,7 +166,8 @@ def test_bf16_original_full_recomputation_at_paper_dimension():
         torch.testing.assert_close(result.distances, reference(x, y).float())
 
 
-@pytest.mark.parametrize("precision,test", itertools.product(["fp16", "bf16"], ["original", "extended"]))
+@pytest.mark.parametrize("precision", ["fp16", BF16])
+@pytest.mark.parametrize("test", ["original", "extended"])
 def test_exact_near_and_far_selection(precision, test):
     # Exactly representable inputs and dot products give independent expected
     # decisions. An implementation that always recomputes must fail this test.
@@ -146,7 +184,7 @@ def test_exact_near_and_far_selection(precision, test):
         torch.testing.assert_close(result.distances, expected_distances)
 
 
-@pytest.mark.parametrize("precision", ["fp16", "bf16"])
+@pytest.mark.parametrize("precision", ["fp16", BF16])
 def test_fp32_storage_retains_small_norm_contribution(precision):
     # Both coordinates are exactly representable in both input formats.
     # 1 + 2**-12 is retained in FP32, but rounds to 1 in low norm storage.
@@ -159,7 +197,7 @@ def test_fp32_storage_retains_small_norm_contribution(precision):
     assert wide.distances.item() == 1. + 2**-12
 
 
-@pytest.mark.parametrize("precision", ["fp16", "bf16"])
+@pytest.mark.parametrize("precision", ["fp16", BF16])
 def test_same_correction_uses_quantized_inputs(precision):
     x = torch.ones(1, 128, device="cuda")
     y = x + 2**-12  # Rounds back to 1 in either low input format.
@@ -170,7 +208,7 @@ def test_same_correction_uses_quantized_inputs(precision):
     assert high.distances.item() == 2**-17
 
 
-@pytest.mark.parametrize("precision", ["fp16", "bf16"])
+@pytest.mark.parametrize("precision", ["fp16", BF16])
 def test_same_correction_accumulates_in_low_format(precision):
     x = torch.full((1, 128), 16., device="cuda")
     y = x + 0.5
@@ -184,13 +222,15 @@ def test_same_correction_accumulates_in_low_format(precision):
     assert high.distances.item() == 1055.75
 
 
-@pytest.mark.parametrize("function", [euclimix.pairwise_squared_distances, euclimix.controlled_squared_distances])
+@pytest.mark.parametrize("function", [euclimix.pairwise_squared_distances, euclimix.controlled_squared_distances, euclimix.pairwise_distances])
 def test_nondefault_stream(function):
     stream = torch.cuda.Stream()
     with torch.cuda.stream(stream):
         x, y = data(n=33, m=17, r=128)
         result = function(x, y)
         expected = reference(x, y)
+        if function is euclimix.pairwise_distances:
+            expected = expected.sqrt()
         done = stream.record_event()
     torch.cuda.current_stream().wait_event(done)
     torch.testing.assert_close(result.double(), expected, rtol=4e-3, atol=1e-5)
@@ -226,6 +266,21 @@ def test_native_validation_cannot_be_bypassed():
         controlled.distance(x, y, 0, 0, 0, 0, 64, 32, 5., -1.)
     with pytest.raises(RuntimeError, match="precision"):
         controlled.direct(x, y, 17)
+
+
+def test_turing_rejects_bf16():
+    if torch.cuda.get_device_capability() != (7, 5):
+        pytest.skip("requires an SM75 GPU")
+    x, y = data()
+    paper, controlled = euclimix.build_cuda()
+    with pytest.raises(RuntimeError, match="BF16.*SM80"):
+        euclimix.pairwise_distances(x, y, precision="bf16")
+    with pytest.raises(RuntimeError, match="BF16.*SM80"):
+        euclimix.controlled_squared_distances(x, y, precision="bf16")
+    with pytest.raises(RuntimeError, match="BF16.*SM80"):
+        paper.distance(x, y, 1, 64, 5.)
+    with pytest.raises(RuntimeError, match="BF16.*SM80"):
+        controlled.distance(x, y, 1, 1, 0, 2, 64, 32, 5., -1.)
 
 
 def test_device_guard():

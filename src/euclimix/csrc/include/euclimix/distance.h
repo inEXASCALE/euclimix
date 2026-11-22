@@ -7,10 +7,16 @@ namespace euclimix {
 
 // All coordinates are original, contiguous FP32 CUDA tensors. Results use
 // the current PyTorch CUDA stream. Native entry points validate independently
-// of Python. precision: 0=FP16, 1=BF16, 2=FP32; correction: 0=same, 32, 64.
+// of Python. The minimum GPU architecture is SM75, or SM80 for BF16.
+// precision: 0=FP16, 1=BF16, 2=FP32; correction: 0=same, 32, 64.
 // Returns {FP32 squared distances, byte rejection mask}.
 std::vector<torch::Tensor> paper_distance(torch::Tensor x, torch::Tensor y,
                                         int precision, int correction, double rho);
+
+// Same reliability test and recomputation as paper_distance, with a final
+// FP32 square root and no rejection mask in the result.
+torch::Tensor paper_euclidean_distance(torch::Tensor x, torch::Tensor y,
+                                      int precision, int correction, double rho);
 
 // Mask-based implementation. storage: 0=low, 1=FP32;
 // backend: 0=cuBLAS, 1=sequential; test: 1=Original, 2=Extended.
@@ -53,7 +59,7 @@ struct ControlledOptions {
 struct DistanceResult {
     torch::Tensor distances;
     torch::Tensor fallback_mask;
-    torch::Tensor absolute_bound;  // Undefined for the index-list implementation.
+    torch::Tensor absolute_bound;  // Undefined for paper_squared_distances.
 };
 
 inline DistanceResult paper_squared_distances(

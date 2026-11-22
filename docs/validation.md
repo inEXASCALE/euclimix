@@ -19,10 +19,10 @@ entry points are stubbed in these tests; CUDA arithmetic is tested separately.
 
 ## CUDA tests
 
-Use a supported NVIDIA GPU, a compatible host compiler and the CUDA toolkit:
+Use a supported NVIDIA GPU, a compatible host compiler and the CUDA toolkit.
 
 ```bash
-export TORCH_CUDA_ARCH_LIST=8.0  # A100
+export TORCH_CUDA_ARCH_LIST=8.0  # Use 7.5 for RTX 2080 Ti.
 export MAX_JOBS=2
 python -c 'import euclimix; euclimix.build_cuda()'
 EUCLIMIX_REQUIRE_CUDA=1 python -m pytest -m cuda
@@ -31,7 +31,8 @@ EUCLIMIX_REQUIRE_CUDA=1 python -m pytest -m cuda
 Tests cover precision/correction modes, storage, threshold selection, near
 pairs, overflow, underflow, tensor views, autocast and nondefault streams.
 FP32 matrix-multiplication tests disable TF32 temporarily and restore the
-previous policy. The device-guard test requires two GPUs.
+previous policy. BF16 tests require SM80+ and the device-guard test requires
+two GPUs.
 
 Compare with the reference CUDA implementation:
 

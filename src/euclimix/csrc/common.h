@@ -20,7 +20,7 @@ inline void record_inputs(const torch::Tensor& x, const torch::Tensor& y) {
     c10::cuda::CUDACachingAllocator::recordStream(y.storage().data_ptr(), stream);
 }
 
-inline void check_inputs(const torch::Tensor& x, const torch::Tensor& y) {
+inline void check_input_metadata(const torch::Tensor& x, const torch::Tensor& y, bool bf16) {
     TORCH_CHECK(x.is_cuda() && y.is_cuda() && x.device() == y.device(),
                 "X and Y must be on the same CUDA device");
     TORCH_CHECK(x.scalar_type() == torch::kFloat32 && y.scalar_type() == torch::kFloat32,
@@ -35,9 +35,15 @@ inline void check_inputs(const torch::Tensor& x, const torch::Tensor& y) {
     TORCH_CHECK(x.size(0) <= INT_MAX && y.size(0) <= INT_MAX &&
                 x.size(0) * y.size(0) <= INT_MAX, "too many pairs; batch the inputs");
     TORCH_CHECK(!x.requires_grad() && !y.requires_grad(), "autograd is unsupported; detach inputs");
+    const auto* properties = at::cuda::getDeviceProperties(x.get_device());
+    TORCH_CHECK(properties->major * 10 + properties->minor >= 75, "SM75+ GPU required");
+    TORCH_CHECK(!bf16 || properties->major >= 8, "BF16 requires an SM80+ GPU");
+}
+
+inline void check_inputs(const torch::Tensor& x, const torch::Tensor& y, bool bf16 = false) {
+    check_input_metadata(x, y, bf16);
     TORCH_CHECK(torch::isfinite(x).all().item<bool>() && torch::isfinite(y).all().item<bool>(),
                 "coordinates must be finite");
-    TORCH_CHECK(at::cuda::getDeviceProperties(x.get_device())->major >= 8, "SM80+ GPU required");
 }
 
 // getCurrentCUDABlasHandle() already binds the current stream AND configures

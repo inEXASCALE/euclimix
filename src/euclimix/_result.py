@@ -18,7 +18,7 @@ class DistanceResult:
     absolute_bound : torch.Tensor or None
         FP64 expanded-path bounds from the mask-based implementation. These
         apply before correction and are conditional for the cuBLAS backend.
-        None for the index-list implementation.
+        None for ``pairwise_squared_distances``.
     model : str
         Description of the arithmetic assumptions.
 

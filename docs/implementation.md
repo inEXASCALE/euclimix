@@ -3,7 +3,7 @@
 The mixed-precision functions evaluate the expanded squared-distance formula,
 test each result, and recompute rejected entries using the direct formula.
 
-## Index-list implementation
+## Original test with fused recomputation
 
 `pairwise_squared_distances` supports FP16, BF16 and FP32 default paths.
 FP16/BF16 inputs are quantized from the original FP32 coordinates. Squared
@@ -25,11 +25,13 @@ where `p` and `q` are stored squared norms and `r` is the feature count:
 These are empirical coefficients. The BF16 coefficient uses `2**-7`,
 whereas BF16 unit roundoff is `2**-8`.
 
-Rejected entries are appended to an index list and recomputed by a separate
-kernel. FP32/FP64 correction uses original FP32 coordinates; `same` uses
-quantized coordinates and low-format arithmetic. Mixed outputs are FP32,
-including after FP64 correction. Nonfinite expanded results or thresholds
-also trigger recomputation.
+One CUDA thread evaluates the Original test for each pair and applies the
+direct formula to that pair when the test rejects it. FP32 and FP64 correction
+read the original FP32 coordinates. The `same` option uses quantized
+coordinates and low-format arithmetic. Nonfinite expanded results or
+thresholds also trigger recomputation. The squared-distance API can report the
+rejection mask. The Euclidean API takes the round-to-nearest FP32 square root
+of the FP32 squared result in the same kernel, including for subnormal values.
 
 ## Mask-based implementation
 
@@ -58,7 +60,7 @@ handle's stream and workspace; euclimix preserves them and restores modified
 math/pointer modes. Rebinding the stream would reset the workspace, as
 documented by [cuBLAS](https://docs.nvidia.com/cuda/archive/12.8.0/cublas/index.html#cublassetstream).
 
-The index-list extension uses `--use_fast_math`. The mask-based extension
+The Original-test extension uses `--use_fast_math`. The mask-based extension
 uses `--ftz=false --fmad=false --prec-div=true --prec-sqrt=true`. Separate
 modules keep these compiler settings independent. Temporary buffers and
 outputs are managed by LibTorch tensors.

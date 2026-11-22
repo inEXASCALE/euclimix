@@ -87,7 +87,7 @@ template<class O,int CORRECTION> __global__ void recompute_distances(const float
 }
 std::vector<Tensor> controlled_distance(Tensor x,Tensor c,int low,int storage,int backend,int threshold,
     int correction,int output,double rho,double epsilon) {
-  detail::check_inputs(x,c);c10::cuda::CUDAGuard guard(x.device());
+  detail::check_inputs(x,c,low==1);c10::cuda::CUDAGuard guard(x.device());
   detail::record_inputs(x,c);
   TORCH_CHECK((low==0||low==1)&&(storage==0||storage==1)&&(backend==0||backend==1),"invalid arithmetic mode");
   TORCH_CHECK(threshold>=1&&threshold<=2&&(correction==32||correction==64)&&(output==32||output==64),"invalid mode");

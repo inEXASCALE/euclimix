@@ -157,22 +157,27 @@ def test_finiteness(x, y, capability):
         _validation.validate_inputs(fake_cuda(x), fake_cuda(y))
 
 
-def test_old_device(monkeypatch):
-    monkeypatch.setattr(torch.cuda, "get_device_capability", lambda device: (7, 5))
-    with pytest.raises(RuntimeError, match="SM80"):
-        _validation.validate_inputs(fake_cuda([[1]]), None)
+@pytest.mark.parametrize("capability,bf16,minimum", [((7, 0), False, "SM75"), ((7, 5), True, "SM80")])
+def test_old_device(monkeypatch, capability, bf16, minimum):
+    monkeypatch.setattr(torch.cuda, "get_device_capability", lambda device: capability)
+    with pytest.raises(RuntimeError, match=minimum):
+        _validation.validate_inputs(fake_cuda([[1]]), None, bf16=bf16)
 
 
-def test_valid_inputs(capability):
+@pytest.mark.parametrize("capability,bf16", [((7, 5), False), ((8, 0), True)])
+def test_valid_inputs(monkeypatch, capability, bf16):
+    monkeypatch.setattr(torch.cuda, "get_device_capability", lambda device: capability)
     x = fake_cuda([[1, 2], [3, 4]]).t()
     assert not x.is_contiguous()
-    a, b = _validation.validate_inputs(x, None)
+    a, b = _validation.validate_inputs(x, None, bf16=bf16)
     assert a.is_contiguous() and b.is_contiguous()
     assert torch.equal(a, x)
     _validation.validate_inputs(fake_cuda(torch.empty(0, 2)), fake_cuda([[1, 2]]))
     negative = x._neg_view()
     a, b = _validation.validate_inputs(negative, x)
     assert not a.is_neg() and torch.equal(a, -x)
+    nonfinite = fake_cuda([[float("nan")]])
+    _validation.validate_inputs(nonfinite, None, check_finite=False)
 
 
 @pytest.fixture
@@ -187,14 +192,19 @@ def dispatched(monkeypatch):
         calls.append(("controlled", options))
         d, mask = paper(x, y)
         return d, mask, torch.ones_like(d, dtype=torch.float64)
+    def euclidean(x, y, *options):
+        calls.append(("euclidean", options))
+        return (x.double()[:, None] - y.double()[None]).square().sum(-1).float().sqrt()
     def direct(x, y, precision):
         calls.append(("direct", precision))
         dtype = torch.float64 if precision == 64 else torch.float32
         return (x.to(dtype)[:, None] - y.to(dtype)[None]).square().sum(-1)
     def load(name):
-        return SimpleNamespace(distance=paper if name == "paper" else controlled, direct=direct)
+        return SimpleNamespace(
+            distance=paper if name == "paper" else controlled, euclidean=euclidean, direct=direct,
+        )
     monkeypatch.setattr(_api, "load_backend", load)
-    monkeypatch.setattr(_api, "validate_inputs", lambda x, y: (x, x if y is None else y))
+    monkeypatch.setattr(_api, "validate_inputs", lambda x, y, **kwargs: (x, x if y is None else y))
     return calls
 
 
@@ -240,6 +250,7 @@ def test_direct_dispatch(dispatched, precision):
 def test_euclidean_dispatch(dispatched):
     d = euclimix.pairwise_distances(torch.tensor([[0., 0.]]), torch.tensor([[3., 4.]]))
     assert d.item() == 5
+    assert dispatched == [("euclidean", (0, 64, 5.0))]
 
 
 def test_empty_diagnostics():

@@ -32,7 +32,14 @@ def original():
         torch.backends.cuda.matmul.allow_tf32 = previous_tf32
 
 
-@pytest.mark.parametrize("precision", ["fp16", "bf16", "fp32"])
+@pytest.mark.parametrize("precision", [
+    "fp16",
+    pytest.param("bf16", marks=pytest.mark.skipif(
+        "torch.cuda.is_available() and torch.cuda.get_device_capability()[0] < 8",
+        reason="BF16 requires SM80+",
+    )),
+    "fp32",
+])
 @pytest.mark.parametrize("correction", ["same", "fp32", "fp64"])
 def test_reference_precision_and_selection(original, precision, correction):
     torch.manual_seed(12)
