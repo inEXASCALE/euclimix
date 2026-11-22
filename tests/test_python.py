@@ -5,6 +5,7 @@ import hashlib
 import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+import tomllib
 
 import pytest
 import torch
@@ -35,7 +36,9 @@ def capability(monkeypatch):
 
 
 def test_public_exports():
-    assert euclimix.__version__ == "0.1.0"
+    project = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    with project.open("rb") as metadata:
+        assert euclimix.__version__ == tomllib.load(metadata)["project"]["version"]
     for name in euclimix.__all__:
         assert getattr(euclimix, name) is not None
 
@@ -266,6 +269,7 @@ def loader(monkeypatch):
     _extension.load_backend.cache_clear()
     monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
     monkeypatch.setattr(ext, "CUDA_HOME", "/fake/cuda")
+    monkeypatch.setattr(_extension, "find_spec", lambda name: None)
     yield ext
     _extension.load_backend.cache_clear()
 
@@ -285,6 +289,37 @@ def test_missing_toolkit(loader, monkeypatch):
     monkeypatch.setattr(loader, "CUDA_HOME", None)
     with pytest.raises(RuntimeError, match="toolkit not found"):
         _extension.load_backend("paper")
+
+
+@pytest.fixture
+def prebuilt(loader, monkeypatch):
+    monkeypatch.setattr(_extension, "find_spec", lambda name: object())
+    monkeypatch.setattr(loader, "CUDA_HOME", None)
+    monkeypatch.setattr(torch, "__version__", "2.15.0+cu132")
+    monkeypatch.setattr(torch.version, "cuda", "13.2")
+
+
+def test_load_prebuilt_modules_without_a_toolkit(prebuilt, monkeypatch):
+    monkeypatch.setattr(_extension, "import_module", lambda name: name)
+    assert euclimix.build_cuda() == ("euclimix._paper_cuda", "euclimix._controlled_cuda")
+
+
+@pytest.mark.parametrize("version,cuda", [("2.14.0", "13.2"), ("2.15.0", "13.0")])
+def test_prebuilt_rejects_incompatible_torch(prebuilt, monkeypatch, version, cuda):
+    monkeypatch.setattr(torch, "__version__", version)
+    monkeypatch.setattr(torch.version, "cuda", cuda)
+    with pytest.raises(RuntimeError, match="requires torch==2.15.0"):
+        _extension.load_backend("paper")
+
+
+@pytest.mark.parametrize("error", [ImportError("undefined symbol"), OSError("shared library missing")])
+def test_prebuilt_preserves_import_failure(prebuilt, monkeypatch, error):
+    def fail(name):
+        raise error
+    monkeypatch.setattr(_extension, "import_module", fail)
+    with pytest.raises(RuntimeError, match="Could not load the precompiled CUDA module") as exc:
+        _extension.load_backend("paper")
+    assert exc.value.__cause__ is error
 
 
 def test_build_modules_and_cache(loader, monkeypatch):

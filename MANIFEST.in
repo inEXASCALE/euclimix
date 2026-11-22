@@ -1,4 +1,6 @@
 include README.md pyproject.toml
+include tools/build_cuda_wheel.sh
+include tools/check_cuda_wheel.py tools/prepare_cuda_toolkit.py tools/smoke_cuda_wheel.py
 recursive-include src/euclimix *.py *.typed *.cpp *.cu *.h CMakeLists.txt
 recursive-include docs *.md *.json
 recursive-include examples *.py *.cpp

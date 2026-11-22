@@ -1,0 +1,83 @@
+name: Linux CUDA wheels
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build CPython ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux_2_28_x86_64
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12', '3.13', '3.14']
+    env:
+      CPYTHON_VERSION: ${{ matrix.python }}
+      MAX_JOBS: '2'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create the build environment
+        run: |
+          abi="cp${CPYTHON_VERSION//./}"
+          "/opt/python/$abi-$abi/bin/python" -m venv "$RUNNER_TEMP/euclimix-build"
+          printf '%s\n' "$RUNNER_TEMP/euclimix-build/bin" >> "$GITHUB_PATH"
+          printf '%s\n' "/opt/rh/gcc-toolset-14/root/usr/bin" >> "$GITHUB_PATH"
+      - name: Install the PyPI PyTorch wheel and build tools
+        run: |
+          python -m pip --isolated install --no-compile --no-cache-dir \
+            --index-url https://pypi.org/simple --only-binary=:all: \
+            'torch==2.15.0' 'setuptools>=69' wheel build ninja auditwheel patchelf
+      - name: Prepare CUDA 13.2
+        run: |
+          cuda_home="$RUNNER_TEMP/cuda-13.2"
+          python tools/prepare_cuda_toolkit.py "$cuda_home"
+          printf 'CUDA_HOME=%s\n' "$cuda_home" >> "$GITHUB_ENV"
+          printf '%s\n' "$cuda_home/bin" >> "$GITHUB_PATH"
+      - name: Build and check SM75 and SM80 machine code
+        run: bash tools/build_cuda_wheel.sh wheelhouse
+      - uses: actions/upload-artifact@v4
+        with:
+          name: euclimix-linux-x86_64-py${{ matrix.python }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  smoke:
+    name: Run CPython ${{ matrix.python }} wheel without nvcc
+    needs: build
+    runs-on: [self-hosted, linux, x64, gpu]
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12', '3.13', '3.14']
+    env:
+      CPYTHON_VERSION: ${{ matrix.python }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: euclimix-linux-x86_64-py${{ matrix.python }}
+          path: wheelhouse
+      - name: Install the wheel from an empty environment and run it on GPU
+        shell: bash
+        run: |
+          docker run --rm --gpus all \
+            --env NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+            --mount "type=bind,src=$PWD/wheelhouse,dst=/wheels,readonly" \
+            --mount "type=bind,src=$PWD/tools/smoke_cuda_wheel.py,dst=/smoke_cuda_wheel.py,readonly" \
+            "python:$CPYTHON_VERSION-slim-bookworm" sh -ec '
+              python -m venv /tmp/euclimix-runtime
+              python=/tmp/euclimix-runtime/bin/python
+              "$python" -m pip --isolated install --no-compile --no-cache-dir \
+                --index-url https://pypi.org/simple --only-binary=:all: /wheels/*.whl
+              "$python" -m pip check
+              TORCH_EXTENSIONS_DIR=/tmp/euclimix-jit-cache "$python" /smoke_cuda_wheel.py
+            '

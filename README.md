@@ -13,6 +13,24 @@ Mixed-precision Euclidean distances on NVIDIA GPUs, with Python/pybind11 and C++
 
 ## Installation
 
+### Precompiled CUDA wheel
+
+Install a compatible release wheel from a clean CPython environment. For a local
+wheel, pass its filename to pip.
+
+```bash
+python -m pip install ./euclimix-0.1.1-cp314-cp314-manylinux_2_28_x86_64.whl
+```
+
+The binary builds target CPython 3.11–3.14 on Linux x86-64 with glibc 2.28+,
+NVIDIA SM75 or SM80, and PyTorch 2.15.0 with CUDA 13.2. Choose the wheel tag
+matching your Python version. Pip installs PyTorch and the CUDA runtime
+dependencies. The machine needs a compatible NVIDIA driver. CUDA Toolkit,
+Ninja, and a host compiler are needed only for building the wheel or compiling
+from source. BF16 still requires SM80+. See [wheel build instructions](docs/validation.md#precompiled-cuda-wheel).
+
+### Source installation
+
 Requirements include Linux, Python 3.11+, CUDA-enabled PyTorch 2.11+, CUDA toolkit 12.8+ with `nvcc`, and an NVIDIA Turing or newer GPU (SM75+). BF16 requires Ampere or newer (SM80+). The PyTorch wheel must support the target GPU. Use a compatible C++17 compiler or C++20 if required by LibTorch. The PyTorch CUDA wheel provides runtime libraries. Install the CUDA compiler separately. cuDNN is optional.
 
 Example with CUDA 12.8:

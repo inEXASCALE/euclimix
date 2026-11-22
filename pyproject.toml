@@ -9,7 +9,7 @@ description = "Mixed-precision squared Euclidean distances with selective CUDA r
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{name = "Xinye Chen"}]
-dependencies = ["torch>=2.11,<3", "ninja>=1.11"]
+dynamic = ["dependencies"]
 
 [project.optional-dependencies]
 test = ["pytest>=7.4", "pytest-cov>=4.1", "numpy>=1.26"]
@@ -23,7 +23,7 @@ euclimix = ["py.typed", "csrc/*.cpp", "csrc/*.cu", "csrc/*.h", "csrc/include/euc
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["cuda: requires an NVIDIA GPU and the CUDA compiler"]
+markers = ["cuda: requires an NVIDIA GPU and an available CUDA backend"]
 addopts = "-ra --strict-markers"
 
 [tool.coverage.run]
